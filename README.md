@@ -26,10 +26,31 @@ $$
 
 ---
 
-## 🛠️ 快速开始
+## 🛠️ 快速開始 (Quick Start)
 
-```python
-from model import NanoObserver2D
+### 1. 環境配置 (Environment Setup)
+本項目基於 PyTorch 框架開發，建議使用虛擬環境以確保依賴項隔離。
 
-# 初始化 16 维潜空间模型
-model = NanoObserver2D(latent_dim=16)
+```bash
+# 創建並啟動虛擬環境
+python -m venv .venv
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate   # Windows
+
+# 安裝核心依賴項
+pip install -r requirements.txt
+
+### 2. 數據準備 (Data Preparation)
+由於 MU_SSiD 數據集體積較大，本倉庫不包含原始影像數據。請依照以下步驟準備：
+
+1. **下載數據**: 請前往 [點此插入你的 Google Drive/Kaggle 鏈接] 下載完整數據集。
+2. **解壓與排列**: 將下載的數據解壓至項目根目錄，並確保文件夾層級嚴格符合以下結構：
+
+```text
+./MU_SSiD_Dataset/
+├── 224x224/
+│   ├── 1. Training/
+│   ├── 2. Validation/
+│   └── 3. Testing/
+├── 227x227/ ... 
+└── 331x331/
