@@ -36,10 +36,10 @@ $$
 python -m venv .venv
 source .venv/bin/activate  # Linux/macOS
 # .venv\Scripts\activate   # Windows
-
+`
 # 安裝核心依賴項
 pip install -r requirements.txt
-
+```
 ### 2. 數據準備 (Data Preparation)
 由於 MU_SSiD 數據集體積較大，本倉庫不包含原始影像數據。請依照以下步驟準備：
 
