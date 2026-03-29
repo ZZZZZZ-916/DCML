@@ -12,7 +12,7 @@ class SpatialQAC(nn.Module):
         # 注册 4 个正交吸引子 [3, 7]
         self.register_buffer('attractors', torch.eye(num_classes, latent_dim))
         # 注册拉普拉斯卷积核 [3, 8]
-        laplacian = torch.tensor([[1], [1, -4, 1], [1]], dtype=torch.float32)
+        laplacian = torch.tensor([[0, 1, 0], [1, -4, 1], [0, 1, 0]], dtype=torch.float32)
         self.register_buffer('laplacian_kernel', laplacian.view(1, 1, 3, 3).repeat(latent_dim, 1, 1, 1))
 
     def get_potential(self, z):
