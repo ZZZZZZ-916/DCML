@@ -1,23 +1,53 @@
 import torch
-import pandas as pd
-import numpy as np
-from sklearn.metrics import accuracy_score, classification_report
-from model import NanoObserver2D
+import torch.nn.functional as F
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader, ConcatDataset
+import os
+from sklearn.metrics import accuracy_score
+from model import NanoObserver2D # 引用 model.py
 
-def analyze_parameters(model):
-    """检测死神经元及权重爆炸 [26, 27]。"""
-    results = []
-    for name, param in model.named_parameters():
-        data = param.detach().cpu().numpy()
-        status = 'OK'
-        if (np.abs(data) < 1e-9).all(): status = 'DEAD'
-        if (np.abs(data) > 50.0).any(): status = 'EXPLODED'
-        results.append({'Layer': name, 'Mean': f"{np.mean(data):.4e}", 'Status': status})
-    return pd.DataFrame(results)
+CONFIG = {
+    'dataset_root': './MU_SSiD_Dataset',
+    'resolutions': ['224x224', '227x227', '256x256', '299x299', '331x331'],
+    'model_path': './QAC_MultiRes_Artifacts/multires_10subset_best.pth',
+    'batch_size': 1024,
+    'device': torch.device("cuda" if torch.cuda.is_available() else "cpu")
+}
 
-def run_health_check(model, loaders):
-    """计算泛化差距并给出诊断建议 [28-30]。"""
-    # 逻辑：比较 Train Acc 与 Test Acc 的差值 (Gap)
-    # Gap < 10% 为 MILD OVERFITTING [30, 31]
-    # Gap > 10% 为 MASS OVERFITTING [30, 32]
-    pass # 详细实现见源代码评估引擎部分
+def get_eval_loaders():
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ])
+    loaders = {}
+    for split, folder in [('Train', '1. Training'), ('Test', '3. Testing')]:
+        ds_list = [datasets.ImageFolder(os.path.join(CONFIG['dataset_root'], res, res, folder), transform) 
+                   for res in CONFIG['resolutions'] if os.path.exists(os.path.join(CONFIG['dataset_root'], res, res, folder))]
+        loaders[split] = DataLoader(ConcatDataset(ds_list), batch_size=CONFIG['batch_size'])
+    return loaders
+
+def main():
+    loaders = get_eval_loaders()
+    model = NanoObserver2D(latent_dim=16).to(CONFIG['device'])
+    model.load_state_dict(torch.load(CONFIG['model_path']))
+    model.eval()
+
+    results = {}
+    for name, loader in loaders.items():
+        all_preds, all_labels = [], []
+        with torch.no_grad():
+            for imgs, labels in loader:
+                z = model(imgs.to(CONFIG['device']))
+                preds = torch.argmax(-torch.cdist(z, model.qac.attractors), dim=1)
+                all_preds.extend(preds.cpu().numpy()); all_labels.extend(labels.numpy())
+        results[name] = accuracy_score(all_labels, all_preds)
+        print(f"📊 {name} Accuracy: {results[name]:.2%}")
+
+    gap = results['Train'] - results['Test']
+    print(f"\n📉 Generalization Gap: {gap:.2%}")
+    if gap < 0.10: print("✅ STATUS: HEALTHY (Good Generalization)") # 理想目標 < 9.5% [4, 5]
+    else: print("❌ STATUS: OVERFITTING")
+
+if __name__ == '__main__':
+    main()
